@@ -1,0 +1,29 @@
+name: Publish n8n-nodes-lescribeaudio with npm Provenance
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          registry-url: "https://registry.npmjs.org"
+      - name: Install TypeScript for build
+        run: npm install --no-save typescript @types/node
+      - name: Build & Test
+        run: |
+          npm run build
+          npm test
+      - name: Publish to npm with OIDC Provenance
+        run: npm publish --provenance --access public

@@ -1,6 +1,6 @@
 {
   "name": "n8n-nodes-lescribeaudio",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Official n8n community node for Le Scribe Audio Public REST API & HMAC-SHA256 Webhooks (French 2-pass AI audio/video transcription to Word .docx, SRT, VTT, JSON & executive/chrono-thematic summary).",
   "keywords": [
     "n8n-community-node-package",
@@ -22,7 +22,10 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/zoulouzaza76/n8n-nodes-lescribeaudio.git"
+    "url": "git+https://github.com/zoulouzaza76/n8n-nodes-lescribeaudio.git"
+  },
+  "bugs": {
+    "url": "https://github.com/zoulouzaza76/n8n-nodes-lescribeaudio/issues"
   },
   "main": "dist/index.js",
   "scripts": {
