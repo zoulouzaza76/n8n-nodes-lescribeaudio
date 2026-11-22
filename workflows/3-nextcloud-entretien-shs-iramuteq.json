@@ -1,0 +1,52 @@
+{
+  "name": "Recherche SHS — Entretien audio Nextcloud vers JSON structuré & Export IRaMuTeQ",
+  "nodes": [
+    {
+      "id": "manual-start",
+      "name": "Soumettre URL entretien audio",
+      "type": "n8n-nodes-lescribeaudio.leScribeAudio",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "parameters": {
+        "resource": "transcription",
+        "operation": "submitUrl",
+        "sourceUrl": "={{ $json.audio_url }}",
+        "verbatimMode": "full",
+        "generateSummary": false
+      }
+    },
+    {
+      "id": "lsa-trigger",
+      "name": "Webhook Entretien Transcrit",
+      "type": "n8n-nodes-lescribeaudio.leScribeAudioTrigger",
+      "typeVersion": 1,
+      "position": [240, 520],
+      "parameters": {
+        "events": ["transcription.completed"],
+        "verifySignature": true
+      }
+    },
+    {
+      "id": "export-json",
+      "name": "Récupérer segments horodatés JSON",
+      "type": "n8n-nodes-lescribeaudio.leScribeAudio",
+      "typeVersion": 1,
+      "position": [520, 520],
+      "parameters": {
+        "resource": "transcription",
+        "operation": "export",
+        "fileId": "={{ $json.data.file_id }}",
+        "exportFormat": "json"
+      }
+    }
+  ],
+  "connections": {
+    "Webhook Entretien Transcrit": {
+      "main": [[{ "node": "Récupérer segments horodatés JSON", "type": "main", "index": 0 }]]
+    }
+  },
+  "meta": {
+    "templateSource": "https://lescribeaudio.com/transcription-audio-iramuteq-atlasti-analyse-textuelle",
+    "description": "Chaîne automatisée de pré-transcription d'entretiens semi-directifs de recherche avec export JSON horodaté par intervenant."
+  }
+}

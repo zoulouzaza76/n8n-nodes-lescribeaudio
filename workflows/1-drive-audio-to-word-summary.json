@@ -1,0 +1,80 @@
+{
+  "name": "Le Scribe Audio — Dossier Nextcloud / Google Drive vers Word (.docx) + Synthèse",
+  "nodes": [
+    {
+      "id": "trigger-drive",
+      "name": "Nouveau fichier audio déposé",
+      "type": "n8n-nodes-base.googleDriveTrigger",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "parameters": {
+        "event": "fileCreated",
+        "triggerOn": "specificFolder"
+      }
+    },
+    {
+      "id": "download-drive",
+      "name": "Télécharger le fichier audio",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [480, 300],
+      "parameters": {
+        "operation": "download",
+        "fileId": "={{ $json.id }}"
+      }
+    },
+    {
+      "id": "submit-lsa",
+      "name": "Soumettre à Le Scribe Audio (2 passes)",
+      "type": "n8n-nodes-lescribeaudio.leScribeAudio",
+      "typeVersion": 1,
+      "position": [740, 300],
+      "parameters": {
+        "resource": "transcription",
+        "operation": "submitFile",
+        "binaryPropertyName": "data",
+        "verbatimMode": "clean",
+        "generateSummary": true
+      }
+    },
+    {
+      "id": "webhook-done",
+      "name": "Webhook Fin de Transcription",
+      "type": "n8n-nodes-lescribeaudio.leScribeAudioTrigger",
+      "typeVersion": 1,
+      "position": [240, 560],
+      "parameters": {
+        "events": ["transcription.completed"],
+        "verifySignature": true
+      }
+    },
+    {
+      "id": "export-docx",
+      "name": "Télécharger le Word (.docx) modifiable",
+      "type": "n8n-nodes-lescribeaudio.leScribeAudio",
+      "typeVersion": 1,
+      "position": [520, 560],
+      "parameters": {
+        "resource": "transcription",
+        "operation": "export",
+        "fileId": "={{ $json.data.file_id }}",
+        "exportFormat": "docx"
+      }
+    }
+  ],
+  "connections": {
+    "Nouveau fichier audio déposé": {
+      "main": [[{ "node": "Télécharger le fichier audio", "type": "main", "index": 0 }]]
+    },
+    "Télécharger le fichier audio": {
+      "main": [[{ "node": "Soumettre à Le Scribe Audio (2 passes)", "type": "main", "index": 0 }]]
+    },
+    "Webhook Fin de Transcription": {
+      "main": [[{ "node": "Télécharger le Word (.docx) modifiable", "type": "main", "index": 0 }]]
+    }
+  },
+  "meta": {
+    "templateSource": "https://lescribeaudio.com/integrations-mcp",
+    "description": "Automatise la pré-transcription en 2 passes d'enregistrements de réunions (CSE, entretiens, séances) en fichier Word (.docx) modifiable + synthèse exécutive et chrono-thématique."
+  }
+}

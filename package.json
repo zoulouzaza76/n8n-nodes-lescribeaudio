@@ -1,0 +1,51 @@
+{
+  "name": "n8n-nodes-lescribeaudio",
+  "version": "1.0.0",
+  "description": "Official n8n community node for Le Scribe Audio Public REST API & HMAC-SHA256 Webhooks (French 2-pass AI audio/video transcription to Word .docx, SRT, VTT, JSON & executive/chrono-thematic summary).",
+  "keywords": [
+    "n8n-community-node-package",
+    "n8n",
+    "transcription",
+    "audio-to-text",
+    "speech-to-text",
+    "french",
+    "rgpd",
+    "rgaa",
+    "lescribeaudio"
+  ],
+  "license": "MIT",
+  "homepage": "https://lescribeaudio.com/integrations-mcp",
+  "author": {
+    "name": "Le Scribe Audio",
+    "email": "info@lescribeaudio.com",
+    "url": "https://lescribeaudio.com"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/zoulouzaza76/n8n-nodes-lescribeaudio.git"
+  },
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "test": "node --test test/node.test.mjs"
+  },
+  "files": [
+    "dist",
+    "workflows",
+    "README.md",
+    "LICENSE"
+  ],
+  "n8n": {
+    "n8nNodesApiVersion": 1,
+    "credentials": [
+      "dist/credentials/LeScribeAudioApi.credentials.js"
+    ],
+    "nodes": [
+      "dist/nodes/LeScribeAudio/LeScribeAudio.node.js",
+      "dist/nodes/LeScribeAudio/LeScribeAudioTrigger.node.js"
+    ]
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

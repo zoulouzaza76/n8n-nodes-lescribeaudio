@@ -1,0 +1,83 @@
+{
+  "name": "Mairies & Collectivités — Sous-titrage RGAA 4.1 (.VTT / .SRT) des Conseils Municipaux",
+  "nodes": [
+    {
+      "id": "webhook-in",
+      "name": "Réception URL vidéo Conseil Municipal",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [220, 280],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "conseil-municipal-rgaa"
+      }
+    },
+    {
+      "id": "lsa-submit-url",
+      "name": "Pré-transcription IA 2 passes (jusqu'à 10h)",
+      "type": "n8n-nodes-lescribeaudio.leScribeAudio",
+      "typeVersion": 1,
+      "position": [480, 280],
+      "parameters": {
+        "resource": "transcription",
+        "operation": "submitUrl",
+        "sourceUrl": "={{ $json.body.video_url }}",
+        "verbatimMode": "clean",
+        "generateSummary": true,
+        "contextHints": "Conseil municipal, CGCT, délibération, quorum, PLUi, DOB, budget primitif"
+      }
+    },
+    {
+      "id": "lsa-done",
+      "name": "Déclencheur Transcription Terminée",
+      "type": "n8n-nodes-lescribeaudio.leScribeAudioTrigger",
+      "typeVersion": 1,
+      "position": [220, 520],
+      "parameters": {
+        "events": ["transcription.completed"],
+        "verifySignature": true
+      }
+    },
+    {
+      "id": "export-vtt",
+      "name": "Exporter piste WebVTT (.vtt) RGAA 4.1",
+      "type": "n8n-nodes-lescribeaudio.leScribeAudio",
+      "typeVersion": 1,
+      "position": [500, 460],
+      "parameters": {
+        "resource": "transcription",
+        "operation": "export",
+        "fileId": "={{ $json.data.file_id }}",
+        "exportFormat": "vtt"
+      }
+    },
+    {
+      "id": "export-pv-docx",
+      "name": "Exporter trame PV Word (.docx)",
+      "type": "n8n-nodes-lescribeaudio.leScribeAudio",
+      "typeVersion": 1,
+      "position": [500, 620],
+      "parameters": {
+        "resource": "transcription",
+        "operation": "export",
+        "fileId": "={{ $json.data.file_id }}",
+        "exportFormat": "docx"
+      }
+    }
+  ],
+  "connections": {
+    "Réception URL vidéo Conseil Municipal": {
+      "main": [[{ "node": "Pré-transcription IA 2 passes (jusqu'à 10h)", "type": "main", "index": 0 }]]
+    },
+    "Déclencheur Transcription Terminée": {
+      "main": [[
+        { "node": "Exporter piste WebVTT (.vtt) RGAA 4.1", "type": "main", "index": 0 },
+        { "node": "Exporter trame PV Word (.docx)", "type": "main", "index": 0 }
+      ]]
+    }
+  },
+  "meta": {
+    "templateSource": "https://lescribeaudio.com/sous-titrage-accessibilite-rgaa",
+    "description": "Génère en parallèle la piste de sous-titres WebVTT conforme RGAA 4.1 et le document Word (.docx) modifiable pour la rédaction du procès-verbal de conseil municipal."
+  }
+}
