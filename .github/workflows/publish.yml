@@ -19,11 +19,14 @@ jobs:
         with:
           node-version: "22"
           registry-url: "https://registry.npmjs.org"
+      - name: Upgrade npm for OIDC Trusted Publishing (>= 11.5.1)
+        run: npm install -g npm@latest && npm --version
       - name: Install TypeScript for build
-        run: npm install --no-save typescript @types/node
+        run: npm install --no-save typescript@5
       - name: Build & Test
         run: |
           npm run build
+          cp nodes/LeScribeAudio/lescribeaudio.svg dist/nodes/LeScribeAudio/lescribeaudio.svg
           npm test
       - name: Publish to npm with OIDC Provenance
         run: npm publish --provenance --access public
