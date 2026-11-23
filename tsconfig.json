@@ -1,6 +1,7 @@
 {
   "compilerOptions": {
-    "target": "ES2022",
+    "target": "ES2019",
+    "lib": ["ES2019", "ES2020", "ES2022.Error", "DOM"],
     "module": "CommonJS",
     "moduleResolution": "Node",
     "outDir": "./dist",
@@ -12,7 +13,6 @@
     "declaration": true
   },
   "include": [
-    "env.d.ts",
     "index.ts",
     "credentials/**/*.ts",
     "nodes/**/*.ts"

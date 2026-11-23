@@ -1,18 +1,31 @@
-export class LeScribeAudio {
-  description = {
+import type {
+  IDataObject,
+  IExecuteFunctions,
+  INodeExecutionData,
+  INodeType,
+  INodeTypeDescription,
+} from 'n8n-workflow';
+import { NodeConnectionTypes, NodeOperationError } from 'n8n-workflow';
+
+export class LeScribeAudio implements INodeType {
+  description: INodeTypeDescription = {
     displayName: 'Le Scribe Audio',
     name: 'leScribeAudio',
-    icon: 'file:lescribeaudio.svg',
+    icon: {
+      light: 'file:lescribeaudio.svg',
+      dark: 'file:lescribeaudio.dark.svg',
+    },
     group: ['transform'],
     version: 1,
     subtitle: '={{$parameter["resource"] + ": " + $parameter["operation"]}}',
     description:
-      'Transcribe long French audio/video files (up to 10h / 10 GB) into modifiable Word (.docx), SRT, VTT, JSON and executive/chrono-thematic summary via Le Scribe Audio Public REST API.',
+      'Transcribe long French audio/video files (up to 10h / 10 GB) into modifiable Word (.docx), SRT, VTT, JSON and executive/chrono-thematic summary via Le Scribe Audio Public REST API',
     defaults: {
       name: 'Le Scribe Audio',
     },
-    inputs: ['main'],
-    outputs: ['main'],
+    usableAsTool: true,
+    inputs: [NodeConnectionTypes.Main],
+    outputs: [NodeConnectionTypes.Main],
     credentials: [
       {
         name: 'leScribeAudioApi',
@@ -38,11 +51,31 @@ export class LeScribeAudio {
         noDataExpression: true,
         displayOptions: { show: { resource: ['transcription'] } },
         options: [
-          { name: 'Submit from Public URL', value: 'submitUrl', action: 'Submit audio or video URL for transcription' },
-          { name: 'Submit Binary File', value: 'submitFile', action: 'Upload binary audio or video file for transcription' },
-          { name: 'Get Status & Transcript', value: 'get', action: 'Get transcription status, segments and summary' },
-          { name: 'Export Deliverable (DOCX / SRT / VTT / TXT / JSON)', value: 'export', action: 'Export transcription file' },
-          { name: 'List Transcriptions', value: 'list', action: 'List recent transcriptions' },
+          {
+            name: 'Export',
+            value: 'export',
+            action: 'Export transcription file',
+          },
+          {
+            name: 'Get',
+            value: 'get',
+            action: 'Get a transcription',
+          },
+          {
+            name: 'List',
+            value: 'list',
+            action: 'List recent transcriptions',
+          },
+          {
+            name: 'Submit Binary File',
+            value: 'submitFile',
+            action: 'Upload a binary audio or video file for transcription',
+          },
+          {
+            name: 'Submit From Public URL',
+            value: 'submitUrl',
+            action: 'Submit a public audio or video URL for transcription',
+          },
         ],
         default: 'submitUrl',
       },
@@ -53,10 +86,10 @@ export class LeScribeAudio {
         noDataExpression: true,
         displayOptions: { show: { resource: ['webhook'] } },
         options: [
-          { name: 'List Webhooks', value: 'listWebhooks', action: 'List configured webhooks' },
-          { name: 'Create Webhook', value: 'createWebhook', action: 'Create outbound webhook' },
-          { name: 'Test Webhook', value: 'testWebhook', action: 'Send signed test webhook event' },
-          { name: 'Delete Webhook', value: 'deleteWebhook', action: 'Delete outbound webhook' },
+          { name: 'Create', value: 'createWebhook', action: 'Create an outbound webhook' },
+          { name: 'Delete', value: 'deleteWebhook', action: 'Delete an outbound webhook' },
+          { name: 'List', value: 'listWebhooks', action: 'List configured webhooks' },
+          { name: 'Test', value: 'testWebhook', action: 'Send a signed test webhook event' },
         ],
         default: 'listWebhooks',
       },
@@ -67,7 +100,7 @@ export class LeScribeAudio {
         default: '',
         required: true,
         displayOptions: { show: { resource: ['transcription'], operation: ['submitUrl'] } },
-        description: 'Public HTTPS URL of the audio or video file (.mp3, .m4a, .wav, .mp4, .ds2, .dss).',
+        description: 'Public HTTPS URL of the audio or video file (.mp3, .m4a, .wav, .mp4, .ds2, .dss)',
       },
       {
         displayName: 'Binary Property Name',
@@ -89,8 +122,8 @@ export class LeScribeAudio {
         name: 'verbatimMode',
         type: 'options',
         options: [
-          { name: 'Clean (Épuré / Rédactionnel)', value: 'clean' },
-          { name: 'Full Verbatim (Intégral)', value: 'full' },
+          { name: 'Clean (Edited)', value: 'clean' },
+          { name: 'Full Verbatim', value: 'full' },
         ],
         default: 'clean',
         displayOptions: { show: { resource: ['transcription'], operation: ['submitUrl', 'submitFile'] } },
@@ -103,19 +136,21 @@ export class LeScribeAudio {
         displayOptions: { show: { resource: ['transcription'], operation: ['submitUrl', 'submitFile'] } },
       },
       {
-        displayName: 'Context Hints (Optional, max 400 chars)',
+        displayName: 'Context Hints',
         name: 'contextHints',
         type: 'string',
         default: '',
         displayOptions: { show: { resource: ['transcription'], operation: ['submitUrl', 'submitFile'] } },
-        description: 'Brief context or proper nouns to guide 2-pass transcription (e.g. Conseil municipal de Rennes, PLUi, DOB).',
+        description:
+          'Optional context or proper nouns (max 400 chars) to guide 2-pass transcription (e.g. municipal council, acronyms)',
       },
       {
-        displayName: 'Per-Job Webhook Callback URL (Optional)',
+        displayName: 'Per-Job Webhook Callback URL',
         name: 'webhookUrl',
         type: 'string',
         default: '',
         displayOptions: { show: { resource: ['transcription'], operation: ['submitUrl', 'submitFile'] } },
+        description: 'Optional HTTPS URL notified when this transcription completes',
       },
       {
         displayName: 'File ID',
@@ -130,11 +165,11 @@ export class LeScribeAudio {
         name: 'exportFormat',
         type: 'options',
         options: [
-          { name: 'Word (.docx)', value: 'docx' },
+          { name: 'JSON (.json)', value: 'json' },
+          { name: 'Plain Text (.txt)', value: 'txt' },
           { name: 'SubRip (.srt)', value: 'srt' },
           { name: 'WebVTT (.vtt)', value: 'vtt' },
-          { name: 'Plain Text (.txt)', value: 'txt' },
-          { name: 'JSON (.json)', value: 'json' },
+          { name: 'Word (.docx)', value: 'docx' },
         ],
         default: 'docx',
         displayOptions: { show: { resource: ['transcription'], operation: ['export'] } },
@@ -143,7 +178,11 @@ export class LeScribeAudio {
         displayName: 'Limit',
         name: 'limit',
         type: 'number',
-        default: 25,
+        typeOptions: {
+          minValue: 1,
+        },
+        default: 50,
+        description: 'Max number of results to return',
         displayOptions: { show: { resource: ['transcription'], operation: ['list'] } },
       },
       {
@@ -165,57 +204,58 @@ export class LeScribeAudio {
     ],
   };
 
-  async execute(this: any): Promise<any[][]> {
+  async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
     const items = this.getInputData();
-    const returnData: any[] = [];
+    const returnData: INodeExecutionData[] = [];
     const credentials = await this.getCredentials('leScribeAudioApi');
     const baseUrl = String(credentials.baseUrl || 'https://lescribeaudio.com').replace(/\/+$/, '');
-    const authHeaders = { Authorization: `Bearer ${credentials.apiKey}` };
 
     for (let i = 0; i < items.length; i++) {
       const resource = this.getNodeParameter('resource', i) as string;
       const operation = this.getNodeParameter('operation', i) as string;
 
       if (resource === 'transcription' && operation === 'list') {
-        const limit = this.getNodeParameter('limit', i, 25);
-        const res = await this.helpers.httpRequest({
+        const limit = this.getNodeParameter('limit', i, 50) as number;
+        const res = await this.helpers.httpRequestWithAuthentication.call(this, 'leScribeAudioApi', {
           method: 'GET',
           url: `${baseUrl}/api/v1/public/transcriptions`,
           qs: { limit },
-          headers: authHeaders,
           json: true,
         });
-        returnData.push({ json: res, pairedItem: i });
+        returnData.push({ json: res as IDataObject, pairedItem: i });
       } else if (resource === 'transcription' && operation === 'submitUrl') {
-        const body: Record<string, any> = {
-          source_url: this.getNodeParameter('sourceUrl', i),
-          verbatim_mode: this.getNodeParameter('verbatimMode', i, 'clean'),
-          generate_summary: this.getNodeParameter('generateSummary', i, false),
+        const body: IDataObject = {
+          source_url: this.getNodeParameter('sourceUrl', i) as string,
+          verbatim_mode: this.getNodeParameter('verbatimMode', i, 'clean') as string,
+          generate_summary: this.getNodeParameter('generateSummary', i, false) as boolean,
         };
-        const filename = this.getNodeParameter('filename', i, '');
-        const contextHints = this.getNodeParameter('contextHints', i, '');
-        const webhookUrl = this.getNodeParameter('webhookUrl', i, '');
+        const filename = this.getNodeParameter('filename', i, '') as string;
+        const contextHints = this.getNodeParameter('contextHints', i, '') as string;
+        const webhookUrl = this.getNodeParameter('webhookUrl', i, '') as string;
         if (filename) body.filename = filename;
         if (contextHints) body.context_hints = contextHints;
         if (webhookUrl) body.webhook_url = webhookUrl;
 
-        const res = await this.helpers.httpRequest({
+        const res = await this.helpers.httpRequestWithAuthentication.call(this, 'leScribeAudioApi', {
           method: 'POST',
           url: `${baseUrl}/api/v1/public/transcriptions`,
-          headers: { ...authHeaders, 'Content-Type': 'application/json' },
           body,
           json: true,
         });
-        returnData.push({ json: res, pairedItem: i });
+        returnData.push({ json: res as IDataObject, pairedItem: i });
       } else if (resource === 'transcription' && operation === 'submitFile') {
-        const binProp = this.getNodeParameter('binaryPropertyName', i, 'data');
+        const binProp = this.getNodeParameter('binaryPropertyName', i, 'data') as string;
         const binMeta = items[i]?.binary?.[binProp];
         if (!binMeta) {
-          throw new Error(`Missing binary property "${binProp}" on input item ${i}.`);
+          throw new NodeOperationError(
+            this.getNode(),
+            `Missing binary property "${binProp}" on input item ${i}`,
+            { itemIndex: i }
+          );
         }
         const buffer = await this.helpers.getBinaryDataBuffer(i, binProp);
         const form = new FormData();
-        const blob = new Blob([buffer], { type: binMeta.mimeType || 'audio/mpeg' });
+        const blob = new Blob([new Uint8Array(buffer)], { type: binMeta.mimeType || 'audio/mpeg' });
         form.append('file', blob, binMeta.fileName || 'audio.mp3');
         form.append('verbatim_mode', String(this.getNodeParameter('verbatimMode', i, 'clean')));
         form.append('generate_summary', String(this.getNodeParameter('generateSummary', i, false)));
@@ -224,43 +264,37 @@ export class LeScribeAudio {
         if (contextHints) form.append('context_hints', contextHints);
         if (webhookUrl) form.append('webhook_url', webhookUrl);
 
-        const resp = await fetch(`${baseUrl}/api/v1/public/transcriptions`, {
+        const data = await this.helpers.httpRequestWithAuthentication.call(this, 'leScribeAudioApi', {
           method: 'POST',
-          headers: authHeaders,
+          url: `${baseUrl}/api/v1/public/transcriptions`,
           body: form,
-        });
-        const data = await resp.json();
-        if (!resp.ok) {
-          throw new Error(`Le Scribe Audio API error (${resp.status}): ${JSON.stringify(data)}`);
-        }
-        returnData.push({ json: data, pairedItem: i });
-      } else if (resource === 'transcription' && operation === 'get') {
-        const fileId = encodeURIComponent(String(this.getNodeParameter('fileId', i)));
-        const res = await this.helpers.httpRequest({
-          method: 'GET',
-          url: `${baseUrl}/api/v1/public/transcriptions/${fileId}`,
-          headers: authHeaders,
           json: true,
         });
-        returnData.push({ json: res, pairedItem: i });
+        returnData.push({ json: data as IDataObject, pairedItem: i });
+      } else if (resource === 'transcription' && operation === 'get') {
+        const fileId = encodeURIComponent(String(this.getNodeParameter('fileId', i)));
+        const res = await this.helpers.httpRequestWithAuthentication.call(this, 'leScribeAudioApi', {
+          method: 'GET',
+          url: `${baseUrl}/api/v1/public/transcriptions/${fileId}`,
+          json: true,
+        });
+        returnData.push({ json: res as IDataObject, pairedItem: i });
       } else if (resource === 'transcription' && operation === 'export') {
         const fileId = encodeURIComponent(String(this.getNodeParameter('fileId', i)));
         const format = String(this.getNodeParameter('exportFormat', i, 'docx'));
         if (format === 'json') {
-          const res = await this.helpers.httpRequest({
+          const res = await this.helpers.httpRequestWithAuthentication.call(this, 'leScribeAudioApi', {
             method: 'GET',
             url: `${baseUrl}/api/v1/public/transcriptions/${fileId}/export`,
             qs: { format: 'json' },
-            headers: authHeaders,
             json: true,
           });
-          returnData.push({ json: res, pairedItem: i });
+          returnData.push({ json: res as IDataObject, pairedItem: i });
         } else {
-          const rawBuf = await this.helpers.httpRequest({
+          const rawBuf = await this.helpers.httpRequestWithAuthentication.call(this, 'leScribeAudioApi', {
             method: 'GET',
             url: `${baseUrl}/api/v1/public/transcriptions/${fileId}/export`,
             qs: { format },
-            headers: authHeaders,
             encoding: 'arraybuffer',
           });
           const mimeMap: Record<string, string> = {
@@ -270,47 +304,43 @@ export class LeScribeAudio {
             txt: 'text/plain',
           };
           const binaryData = await this.helpers.prepareBinaryData(
-            Buffer.from(rawBuf),
+            Buffer.from(rawBuf as ArrayBuffer),
             `${fileId}.${format}`,
             mimeMap[format] || 'application/octet-stream'
           );
           returnData.push({ json: { file_id: fileId, format }, binary: { data: binaryData }, pairedItem: i });
         }
       } else if (resource === 'webhook' && operation === 'listWebhooks') {
-        const res = await this.helpers.httpRequest({
+        const res = await this.helpers.httpRequestWithAuthentication.call(this, 'leScribeAudioApi', {
           method: 'GET',
           url: `${baseUrl}/api/v1/public/webhooks`,
-          headers: authHeaders,
           json: true,
         });
-        returnData.push({ json: res, pairedItem: i });
+        returnData.push({ json: res as IDataObject, pairedItem: i });
       } else if (resource === 'webhook' && operation === 'createWebhook') {
-        const res = await this.helpers.httpRequest({
+        const res = await this.helpers.httpRequestWithAuthentication.call(this, 'leScribeAudioApi', {
           method: 'POST',
           url: `${baseUrl}/api/v1/public/webhooks`,
-          headers: { ...authHeaders, 'Content-Type': 'application/json' },
-          body: { url: this.getNodeParameter('targetWebhookUrl', i) },
+          body: { url: this.getNodeParameter('targetWebhookUrl', i) as string },
           json: true,
         });
-        returnData.push({ json: res, pairedItem: i });
+        returnData.push({ json: res as IDataObject, pairedItem: i });
       } else if (resource === 'webhook' && operation === 'testWebhook') {
         const wid = encodeURIComponent(String(this.getNodeParameter('webhookId', i)));
-        const res = await this.helpers.httpRequest({
+        const res = await this.helpers.httpRequestWithAuthentication.call(this, 'leScribeAudioApi', {
           method: 'POST',
           url: `${baseUrl}/api/v1/public/webhooks/${wid}/test`,
-          headers: authHeaders,
           json: true,
         });
-        returnData.push({ json: res, pairedItem: i });
+        returnData.push({ json: res as IDataObject, pairedItem: i });
       } else if (resource === 'webhook' && operation === 'deleteWebhook') {
         const wid = encodeURIComponent(String(this.getNodeParameter('webhookId', i)));
-        const res = await this.helpers.httpRequest({
+        const res = await this.helpers.httpRequestWithAuthentication.call(this, 'leScribeAudioApi', {
           method: 'DELETE',
           url: `${baseUrl}/api/v1/public/webhooks/${wid}`,
-          headers: authHeaders,
           json: true,
         });
-        returnData.push({ json: res, pairedItem: i });
+        returnData.push({ json: res as IDataObject, pairedItem: i });
       }
     }
 

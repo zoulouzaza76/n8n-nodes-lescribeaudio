@@ -1,4 +1,14 @@
 import crypto from 'node:crypto';
+import type {
+  IDataObject,
+  IHookFunctions,
+  INodeType,
+  INodeTypeDescription,
+  IWebhookFunctions,
+  IWebhookResponseData,
+  JsonObject,
+} from 'n8n-workflow';
+import { NodeApiError, NodeConnectionTypes } from 'n8n-workflow';
 
 /**
  * Verifies the `X-LeScribe-Signature: t=<epoch>,v1=<hex>` header signed by Le Scribe Audio.
@@ -35,20 +45,24 @@ export function verifyLeScribeSignature(
   return crypto.timingSafeEqual(expectedBuf, actualBuf);
 }
 
-export class LeScribeAudioTrigger {
-  description = {
+export class LeScribeAudioTrigger implements INodeType {
+  description: INodeTypeDescription = {
     displayName: 'Le Scribe Audio Trigger',
     name: 'leScribeAudioTrigger',
-    icon: 'file:lescribeaudio.svg',
+    icon: {
+      light: 'file:lescribeaudio.svg',
+      dark: 'file:lescribeaudio.dark.svg',
+    },
     group: ['trigger'],
     version: 1,
+    subtitle: '={{$parameter["events"].join(", ")}}',
     description:
-      'Starts an n8n workflow when a Le Scribe Audio transcription finishes (transcription.completed or transcription.failed) with HMAC-SHA256 verification.',
+      'Starts an n8n workflow when a Le Scribe Audio transcription finishes (transcription.completed or transcription.failed) with HMAC-SHA256 verification',
     defaults: {
       name: 'Le Scribe Audio Trigger',
     },
     inputs: [],
-    outputs: ['main'],
+    outputs: [NodeConnectionTypes.Main],
     credentials: [
       {
         name: 'leScribeAudioApi',
@@ -87,44 +101,42 @@ export class LeScribeAudioTrigger {
 
   webhookMethods = {
     default: {
-      async checkExists(this: any): Promise<boolean> {
+      async checkExists(this: IHookFunctions): Promise<boolean> {
         const staticData = this.getWorkflowStaticData('node');
         return Boolean(staticData.webhookId);
       },
-      async create(this: any): Promise<boolean> {
+      async create(this: IHookFunctions): Promise<boolean> {
         const credentials = await this.getCredentials('leScribeAudioApi');
         const baseUrl = String(credentials.baseUrl || 'https://lescribeaudio.com').replace(/\/+$/, '');
         const webhookUrl = this.getNodeWebhookUrl('default');
-        const events = this.getNodeParameter('events', ['transcription.completed']);
-        const res = await this.helpers.httpRequest({
+        const events = this.getNodeParameter('events', ['transcription.completed']) as string[];
+        const res = (await this.helpers.httpRequestWithAuthentication.call(this, 'leScribeAudioApi', {
           method: 'POST',
           url: `${baseUrl}/api/v1/public/webhooks`,
-          headers: {
-            Authorization: `Bearer ${credentials.apiKey}`,
-            'Content-Type': 'application/json',
-          },
           body: { url: webhookUrl, events },
           json: true,
-        });
+        })) as IDataObject;
         const staticData = this.getWorkflowStaticData('node');
         staticData.webhookId = res.id;
         staticData.webhookSecret = res.secret;
         return true;
       },
-      async delete(this: any): Promise<boolean> {
+      async delete(this: IHookFunctions): Promise<boolean> {
         const staticData = this.getWorkflowStaticData('node');
         if (!staticData.webhookId) return true;
         const credentials = await this.getCredentials('leScribeAudioApi');
         const baseUrl = String(credentials.baseUrl || 'https://lescribeaudio.com').replace(/\/+$/, '');
         try {
-          await this.helpers.httpRequest({
+          await this.helpers.httpRequestWithAuthentication.call(this, 'leScribeAudioApi', {
             method: 'DELETE',
-            url: `${baseUrl}/api/v1/public/webhooks/${encodeURIComponent(staticData.webhookId)}`,
-            headers: { Authorization: `Bearer ${credentials.apiKey}` },
+            url: `${baseUrl}/api/v1/public/webhooks/${encodeURIComponent(String(staticData.webhookId))}`,
             json: true,
           });
-        } catch {
-          // Ignore already deleted remote webhook
+        } catch (error) {
+          const errObj = error as { statusCode?: number; httpCode?: string };
+          if (errObj?.statusCode !== 404 && errObj?.httpCode !== '404') {
+            throw new NodeApiError(this.getNode(), error as JsonObject);
+          }
         }
         delete staticData.webhookId;
         delete staticData.webhookSecret;
@@ -133,14 +145,14 @@ export class LeScribeAudioTrigger {
     },
   };
 
-  async webhook(this: any): Promise<any> {
+  async webhook(this: IWebhookFunctions): Promise<IWebhookResponseData> {
     const req = this.getRequestObject();
-    const verify = this.getNodeParameter('verifySignature', true);
+    const verify = this.getNodeParameter('verifySignature', true) as boolean;
     const staticData = this.getWorkflowStaticData('node');
 
     if (verify && staticData.webhookSecret) {
       const sig = String(req.headers['x-lescribe-signature'] || '');
-      const rawBody = req.rawBody || JSON.stringify(this.getBodyData());
+      const rawBody = (req as unknown as { rawBody?: Buffer | string }).rawBody || JSON.stringify(this.getBodyData());
       if (!verifyLeScribeSignature(sig, rawBody, String(staticData.webhookSecret))) {
         return { webhookResponse: 'Invalid X-LeScribe-Signature', workflowData: [] };
       }

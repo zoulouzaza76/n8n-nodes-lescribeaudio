@@ -1,6 +1,6 @@
 {
   "name": "n8n-nodes-lescribeaudio",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Official n8n community node for Le Scribe Audio Public REST API & HMAC-SHA256 Webhooks (French 2-pass AI audio/video transcription to Word .docx, SRT, VTT, JSON & executive/chrono-thematic summary).",
   "keywords": [
     "n8n-community-node-package",
@@ -29,7 +29,7 @@
   },
   "main": "dist/index.js",
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && cp nodes/LeScribeAudio/*.svg dist/nodes/LeScribeAudio/",
     "test": "node --test test/node.test.mjs"
   },
   "files": [
@@ -40,6 +40,7 @@
   ],
   "n8n": {
     "n8nNodesApiVersion": 1,
+    "strict": true,
     "credentials": [
       "dist/credentials/LeScribeAudioApi.credentials.js"
     ],
@@ -47,6 +48,14 @@
       "dist/nodes/LeScribeAudio/LeScribeAudio.node.js",
       "dist/nodes/LeScribeAudio/LeScribeAudioTrigger.node.js"
     ]
+  },
+  "peerDependencies": {
+    "n8n-workflow": "*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "n8n-workflow": "*",
+    "typescript": "^5.8.0"
   },
   "engines": {
     "node": ">=18.0.0"

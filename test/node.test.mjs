@@ -23,10 +23,11 @@ test('verifyLeScribeSignature validates HMAC-SHA256 signatures matching backend/
   assert.equal(verifyLeScribeSignature(`t=${ts - 900},v1=${digest}`, rawBody, secret, 300), false);
 });
 
-test('LeScribeAudio node executes submitUrl and list operations cleanly against mocked helpers', async () => {
+test('LeScribeAudio node executes submitUrl and list operations cleanly via httpRequestWithAuthentication', async () => {
   const node = new LeScribeAudio();
   const requests = [];
   const ctx = {
+    getNode: () => ({ name: 'Le Scribe Audio' }),
     getInputData: () => [{ json: { ok: true } }],
     getCredentials: async () => ({ apiKey: 'lsa_api_test', baseUrl: 'https://lescribeaudio.com/' }),
     getNodeParameter: (name, _idx, fallback) => {
@@ -36,15 +37,15 @@ test('LeScribeAudio node executes submitUrl and list operations cleanly against 
         sourceUrl: 'https://example.org/conseil.mp3',
         verbatimMode: 'clean',
         generateSummary: true,
-        contextHints: 'Conseil municipal',
+        contextHints: 'Municipal council',
         filename: 'conseil.mp3',
         webhookUrl: '',
       };
       return name in map ? map[name] : fallback;
     },
     helpers: {
-      httpRequest: async (opts) => {
-        requests.push(opts);
+      httpRequestWithAuthentication: async function (credName, opts) {
+        requests.push({ credName, ...opts });
         return { file_id: 'job_42', status: 'queued' };
       },
     },
@@ -53,14 +54,15 @@ test('LeScribeAudio node executes submitUrl and list operations cleanly against 
   const [out] = await node.execute.call(ctx);
   assert.equal(out.length, 1);
   assert.equal(out[0].json.file_id, 'job_42');
+  assert.equal(requests[0].credName, 'leScribeAudioApi');
   assert.equal(requests[0].url, 'https://lescribeaudio.com/api/v1/public/transcriptions');
-  assert.equal(requests[0].headers.Authorization, 'Bearer lsa_api_test');
   assert.equal(requests[0].body.generate_summary, true);
 });
 
 test('Credentials, Trigger metadata, and 3 workflow JSON templates are well-formed', () => {
   const creds = new LeScribeAudioApi();
   assert.equal(creds.name, 'leScribeAudioApi');
+  assert.equal(creds.test.request.url, '/api/v1/public/transcriptions');
 
   const trigger = new LeScribeAudioTrigger();
   assert.equal(trigger.description.name, 'leScribeAudioTrigger');
